@@ -990,6 +990,21 @@ function init() {
   $('pvePreset').innerHTML = window.PROVIDERS.map((p) => `<option value="${p.id}">${p.name}</option>`).join('');
   $('pvePreset').addEventListener('change', () => { applyPreset($('pvePreset').value, true, false); });
 
+  // 支持用网址参数预填（如 ?base=...&model=...&key=...），便于把配置做成一条链接带走
+  const qs = new URLSearchParams(location.search);
+  const qBase = qs.get('base'), qModel = qs.get('model'), qKey = qs.get('key');
+  let prefilled = false;
+  if (qBase || qModel || qKey) {
+    prefilled = true;
+    if (qBase) { $('pveBase').value = qBase; $('pvpBaseA').value = qBase; $('pvpBaseB').value = qBase; }
+    if (qModel) { $('pveModel').value = qModel; $('pvpModelA').value = qModel; $('pvpModelB').value = qModel; }
+    if (qKey) { $('pveKey').value = qKey; $('pvpKeyA').value = qKey; $('pvpKeyB').value = qKey; }
+    const hit = window.PROVIDERS.find((p) => p.baseUrl && qBase && p.baseUrl.replace(/\/+$/, '') === qBase.replace(/\/+$/, ''));
+    if (hit) { $('pvePreset').value = hit.id; protocolMap.pve = hit.protocol; }
+    else { $('pvePreset').value = 'custom'; protocolMap.pve = 'openai'; }
+    history.replaceState(null, '', location.pathname);   // 用后即清，密钥不留在地址栏
+  }
+
   const models = new Set();
   window.PROVIDERS.forEach((p) => (p.models || []).forEach((m) => models.add(m)));
   $('modelList').innerHTML = [...models].map((m) => `<option value="${m}"></option>`).join('');
@@ -1013,6 +1028,7 @@ function init() {
   }
   syncOut();
   saveReady = true;
+  if (prefilled) save();   // 网址带进来的配置立即落盘，下次打开仍可用
 
   // Tab
   document.querySelector('.tabs').addEventListener('click', (e) => {
